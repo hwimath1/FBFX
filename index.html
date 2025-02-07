@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <title>방정식과 부등식에의 활용</title>
+  <!-- MathJax 로드 -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+  <style>
+    /* 흑백 테마 */
+    body {
+      background-color: #000;
+      color: #fff;
+      margin: 0;
+      font-family: sans-serif;
+    }
+    #container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+    .centered {
+      text-align: center;
+    }
+    .difficultyBtn {
+      margin: 5px;
+      padding: 8px 12px;
+      background: #333;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
+    #energyBarContainer {
+      width: 100%;
+      height: 10px;
+      background: #555;
+      margin: 10px 0;
+    }
+    #energyBar {
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      transition: width 0.2s linear;
+    }
+    .choiceBtn {
+      display: block;
+      margin: 5px 0;
+      padding: 8px;
+      background: #222;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+    }
+    #response { 
+      white-space: pre-wrap; 
+      color: #fff; 
+      margin-top: 1em; 
+      background: #222; 
+      padding: 5px; 
+    }
+  </style>
+</head>
+
+<body>
+<div id="container">
+
+  <div id="startScreen" class="centered">
+    <h1>방정식과 부등식에의 활용</h1>
+    <p>이름을 입력해주세요.</p>
+    <input type="text" id="playerName" style="text-align:center;"/>
+    <p>난이도를 선택하세요.</p>
+    <button class="difficultyBtn" onclick="startGame('top')">최상</button>
+    <button class="difficultyBtn" onclick="startGame('high')">상</button>
+    <button class="difficultyBtn" onclick="startGame('mid')">중</button>
+    <button class="difficultyBtn" onclick="startGame('low')">하</button>
+  </div>
+
+  <div id="quizScreen" class="hidden">
+    <div class="centered">
+      <p id="playerInfo"></p>
+      <p id="livesInfo"></p>
+      <p id="timerInfo"></p>
+      <div id="energyBarContainer">
+        <div id="energyBar"></div>
+      </div>
+      <p id="scoreInfo"></p>
+      <p id="elapsedTimeInfo"></p>
+    </div>
+    <div id="questionArea"></div>
+  </div>
+
+  <div id="endScreen" class="hidden centered">
+    <h2>게임 종료</h2>
+    <p id="finalScore"></p>
+    <button onclick="sendScore()">점수 전송</button>
+    <div id="response"></div>
+  </div>
+
+</div>
+
+<script>
+// MathJax 렌더 호출 함수
+function renderMath() {
+  MathJax.typeset();
+}
+
+/* 31. 서버에 데이터 전송 함수 */
+function saveData(game, name, score, elapsedTime) {
+    const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+
+    const requestData = {
+        game,
+        name,
+        score: parseInt(score, 10),
+        elapsedTime: parseInt(elapsedTime, 10)
+    };
+
+    fetch(FUNCTION_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+    })
+    .then(response => response.json().then(responseData => {
+        if (response.ok) {
+            document.getElementById('response').innerText = 
+                `성공: ${JSON.stringify(responseData, null, 2)}`;
+        } else {
+            document.getElementById('response').innerText = 
+                `오류: ${JSON.stringify(responseData, null, 2)}`;
+        }
+    }))
+    .catch(error => {
+        console.error('요청 실패:', error);
+        document.getElementById('response').innerText = 
+            `네트워크 오류: ${error.message}`;
+    });
+}
+
+function sendScore(){
+  saveData("방정식과 부등식에의 활용", playerName, score, totalElapsedTime);
+}
+
+/* 문제, 보기, 정답 데이터 (정답의 위치/문자 유지, 중복 X) */
+const allQuestions = [
+  {
+    question: "다음 방정식 \\(x^3 - 3x - 2 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["1개", "2개", "3개", "실근 없음"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 3x^2 + 1 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["3개", "1개", "실근 없음", "2개"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 + 3x^2 - 2 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["1개", "2개", "실근 없음", "3개"],
+    correctIndex: 3 /* D */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 3x^2 + 3 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["실근 없음", "2개", "3개", "1개"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "다음 방정식 \\(x^3 + 3x^2 + 3x + 3 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["1개", "2개", "실근 없음", "3개"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 6x^2 + 9x - 3 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["2개", "3개", "실근 없음", "1개"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(x^3 + 6x^2 + 9x + 4 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["실근 없음", "2개", "1개", "3개"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(x^3 + 3x = 3x^2 + 2\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["3개", "실근 없음", "1개", "2개"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "다음 방정식 \\(x^4 - 2x^2 - 1 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["3개", "2개", "1개", "실근 없음"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(2x^4 - 4x^2 + 1 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["4개", "3개", "2개", "1개"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(3x^4 = 6x^2 - 3\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["2개", "실근 없음", "3개", "4개"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^4 + 2x^3 = -2x^4 + 3x^2 + 1\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["1개", "2개", "3개", "실근 없음"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 6x^2 + 9x + a = 0\\) 에서 서로 다른 세 실근이 되도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-4 < a < 0\\)", "\\(a < -4\\)", "\\(a > 0\\)", "모든 실수 \\(a\\)"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "위 방정식 \\(x^3 - 6x^2 + 9x + a = 0\\) 에서 서로 다른 두 실근을 갖도록 하는 \\(a\\)의 값을 모두 구하여라.",
+    choices: ["\\(a = 0\\)", "\\(a = -4\\)", "\\(a = 0\\) 또는 \\(-4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "동일한 방정식 \\(x^3 - 6x^2 + 9x + a = 0\\) 에서 한 실근과 두 허근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a > 0\\) 또는 \\(a < -4\\)", "\\(0 < a < 4\\)", "\\(-4 < a < 0\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 3x^2 - 9x + a = 0\\) 에서 서로 다른 세 실근이 되도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-5 < a < 27\\)", "\\(a > 27\\)", "\\(a < -5\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "위 방정식 \\(x^3 - 3x^2 - 9x + a = 0\\) 에서 한 실근과 중근을 갖도록 하는 \\(a\\)의 값을 모두 구하여라.",
+    choices: ["\\(a = -5\\)", "\\(a = 27\\)", "\\(a = -5\\) 또는 \\(27\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "동일한 방정식 \\(x^3 - 3x^2 - 9x + a = 0\\) 에서 한 실근과 두 허근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < -5\\) 또는 \\(a > 27\\)", "\\(-5 < a < 27\\)", "\\(a = -5\\) 또는 \\(27\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 3x + 3 - a = 0\\) 에서 서로 다른 세 실근이 되도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < 1\\)", "\\(a > 5\\)", "\\(1 < a < 5\\)", "모든 실수"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "동일한 방정식 \\(x^3 - 3x + 3 - a = 0\\) 에서 한 실근과 중근을 갖도록 하는 \\(a\\)의 값을 모두 구하여라.",
+    choices: ["\\(a = 1\\)", "\\(a = 5\\)", "\\(a = 1\\) 또는 \\(5\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "위 방정식 \\(x^3 - 3x + 3 - a = 0\\) 에서 한 실근과 두 허근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < 1\\) 또는 \\(a > 5\\)", "\\(1 < a < 5\\)", "\\(a = 1\\) 또는 \\(5\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(2x^3 - 9x^2 + 12x + a = 0\\) 에서 서로 다른 세 실근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["그런 \\(a\\)는 없다", "\\(-5 < a < -4\\)", "\\(0 < a < 4\\)", "\\(a = -4\\) 또는 \\(-5\\)"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "위 방정식 \\(2x^3 - 9x^2 + 12x + a = 0\\) 에서 한 실근과 중근을 갖도록 하는 \\(a\\)의 값을 모두 구하여라.",
+    choices: ["그런 \\(a\\)는 없다", "\\(a = -4\\) 또는 \\(-5\\)", "\\(a = -4\\)", "\\(a = -5\\)"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "동일한 방정식 \\(2x^3 - 9x^2 + 12x + a = 0\\) 에서 한 실근과 두 허근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["모든 실수 \\(a\\) 중에서 \\(-4, -5\\)를 제외한 값", "\\(-4 < a < -5\\)", "\\(a < -5\\) 또는 \\(a > -4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "다음 삼차방정식 \\(4x^3 - 6x^2 + 1 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["3개", "2개", "1개", "없음"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 삼차방정식 \\(x^3 - 3x - 2 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["1개", "2개", "3개", "없음"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 삼차방정식 \\(x^3 - 3x^2 + 4 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["2개", "1개", "없음", "3개"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 삼차방정식 \\(x^3 + 3x^2 + 3x + 3 = 0\\) 의 서로 다른 실근의 개수를 구하여라.",
+    choices: ["1개", "2개", "3개", "없음"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - a\\), \\(y = 6x^2\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-32 < a < 0\\)", "\\(a < -32\\)", "\\(a > 0\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - 4x^2 + 6x\\), \\(y = \\tfrac12 x^2 - a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-2.5 < a < -2\\)", "\\(-5 < a < 0\\)", "\\(0 < a < 4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - x^2 + 9x\\), \\(y = 5x^2 - a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-4 < a < 0\\)", "\\(a < -4\\)", "\\(0 < a < 4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 + x^2\\), \\(y = 4x^2 - a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < 0\\)", "\\(a > 4\\)", "\\(0 < a < 4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 + 2x^2 - x\\), \\(y = 5x^2 - x - a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(0 < a < 4\\)", "\\(a < 0\\)", "\\(a > 4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - 4x^2 + 6x\\), \\(y = 2x^2 - 3x + a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(0 < a < 4\\)", "\\(a < 0\\)", "\\(a > 4\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - 9x\\), \\(y = -3x^2 - a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < -27\\)", "\\(a > 5\\)", "\\(-27 < a < 5\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - 3x^2 + 9x\\), \\(y = 3x^2 - a\\) 가 서로 다른 세 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-4 < a < 0\\)", "\\(a < -4\\)", "\\(a > 0\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - a = 6x^2 - 9x\\) 이 한 개의 실근만 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < 0\\) 또는 \\(a > 4\\)", "\\(a > 0\\) 또는 \\(a < -4\\)", "\\(-4 < a < 0\\)", "\\(0 < a < 4\\)"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = x^3 - 2x^2 - 5x\\), \\(y = -5x^2 + 4x + a\\) 가 오직 한 점에서 만나도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < -5\\) 또는 \\(a > 27\\)", "\\(-5 < a < 27\\)", "\\(a = -5\\) 또는 \\(27\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "두 곡선 \\(y = 3x^3 - 3x^2 - 4x\\), \\(y = x^3 + 8x + a\\) 가 서로 다른 두 점에서 만나도록 하는 \\(a\\)의 값을 모두 구하여라.",
+    choices: ["\\(a = -20\\)", "\\(a = 7\\)", "\\(a = -20\\) 또는 \\(7\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 2 /* C */
+  },
+  {
+    question: "다음 방정식 \\(2x^3 - 6x = a\\) 이 한 개의 양의 근과 서로 다른 두 개의 음의 근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-2 < a < 2\\)", "\\(0 < a < 4\\)", "\\(a < 0\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(4x^3 - 3x = a\\) 이 서로 다른 두 개의 양의 근과 한 개의 음의 근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-1 < a < 0\\)", "\\(a > 4\\)", "\\(a = -1\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 3x + a = 0\\) 이 한 개의 음의 근과 서로 다른 두 개의 양의 근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-2 < a < 2\\)", "\\(a < -2\\)", "\\(a > 2\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 0 /* A */
+  },
+  {
+    question: "다음 방정식 \\(x^3 - 3x^2 - 9x + a = 0\\) 이 한 개의 양의 근과 서로 다른 두 개의 음의 근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(a < -5\\)", "\\(-5 < a < 0\\)", "\\(a > 0\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 1 /* B */
+  },
+  {
+    question: "다음 방정식 \\(-x^3 + 3x^2 = a\\) 이 서로 다른 두 개의 양의 근과 한 개의 음의 근을 갖도록 하는 \\(a\\)의 범위를 구하여라.",
+    choices: ["\\(-2 < a < 0\\)", "\\(0 < a < 4\\)", "\\(a < -2\\)", "그런 \\(a\\)는 없다"],
+    correctIndex: 1 /* B */
+  }
+];
+
+// 22. 문제를 무작위로 섞음 (하지만 보기는 순서를 바꾸지 않음)
+function shuffleArray(arr){
+  for(let i=arr.length-1; i>0; i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+shuffleArray(allQuestions);
+
+/* 전역 변수들 */
+let playerName = "";
+let difficulty = "";
+let currentQuestionIndex = 0;
+let score = 0;
+let lives = 3;
+let timer = 0;
+let timerInterval = null;
+let timeLimit = 0;
+let totalElapsedTime = 0; // 전체 게임 시간
+let questionStartTime = 0;
+
+/* 난이도별 초기 시간 설정 */
+const difficultyTime = {
+  top: 50,
+  high: 40,
+  mid: 30,
+  low: 999999  // 사실상 무제한
+};
+/* 난이도별 점수 */
+const difficultyScore = {
+  top: 20,
+  high: 15,
+  mid: 13,
+  low: 10
+};
+
+function startGame(diff){
+  const nameInput = document.getElementById("playerName");
+  playerName = nameInput.value.trim();
+  if(!playerName){ playerName = "플레이어"; }
+
+  difficulty = diff;
+  timeLimit = difficultyTime[diff];
+  
+  document.getElementById("startScreen").classList.add("hidden");
+  document.getElementById("quizScreen").classList.remove("hidden");
+
+  document.getElementById("playerInfo").innerText = playerName + " 님 환영합니다!";
+  document.getElementById("livesInfo").innerText = "남은 기회 : " + lives;
+  document.getElementById("scoreInfo").innerText = "점수 : " + score;
+  document.getElementById("elapsedTimeInfo").innerText = "총 경과 시간 : 0초 (대략)";
+  
+  showQuestion();
+  startTimer();
+}
+
+function startTimer(){
+  clearInterval(timerInterval);
+  timer = timeLimit;
+  updateEnergyBar();
+
+  questionStartTime = Date.now();
+
+  timerInterval = setInterval(()=>{
+    if(difficulty === 'low'){
+      // 하 난이도: 시간 제한 없음 -> 에너지바 고정
+      document.getElementById("energyBar").style.width = "100%";
+    } else {
+      timer -= 0.1; // 0.1초 단위 감소
+      if(timer <= 0){
+        // 시간 초과 -> 기회 1감소, 다음 문제
+        clearInterval(timerInterval);
+        loseLifeByTimeout();
+      } else {
+        updateEnergyBar();
+      }
+    }
+    // 전체 게임 시간 업데이트
+    totalElapsedTime = Math.floor((Date.now() - questionStartTime)/1000) 
+                       + (totalElapsedTime);
+    questionStartTime = Date.now(); // 누적 형식
+    document.getElementById("elapsedTimeInfo").innerText = "총 경과 시간 : " + totalElapsedTime + "초 (대략)";
+  }, 100);
+}
+
+function loseLifeByTimeout(){
+  lives--;
+  if(lives <= 0){
+    endGame();
+  } else {
+    document.getElementById("livesInfo").innerText = "남은 기회 : " + lives;
+    nextQuestion(); 
+  }
+}
+
+function updateEnergyBar(){
+  if(difficulty==='low'){
+    document.getElementById("energyBar").style.width = "100%";
+  } else {
+    let percent = (timer / timeLimit)*100;
+    if(percent<0) percent=0;
+    document.getElementById("energyBar").style.width = percent + "%";
+  }
+}
+
+function showQuestion(){
+  if(currentQuestionIndex >= allQuestions.length){
+    endGame();
+    return;
+  }
+  const qData = allQuestions[currentQuestionIndex];
+  const qDiv = document.getElementById("questionArea");
+  qDiv.innerHTML = "";
+
+  // 문제 표시
+  const qP = document.createElement("p");
+  qP.innerHTML = "<b>문제</b>: " + qData.question;
+  qDiv.appendChild(qP);
+
+  // 보기 표시
+  // 25. 보기를 섞는 것이 아니라 "보기 순서 유지"이므로 따로 shuffle하지 않음
+  qData.choices.forEach((ch, idx)=>{
+    const btn = document.createElement("button");
+    btn.className = "choiceBtn";
+    btn.innerHTML = ch;
+    btn.onclick = ()=> checkAnswer(idx);
+    qDiv.appendChild(btn);
+  });
+
+  renderMath(); // 수식 렌더
+}
+
+function checkAnswer(choiceIdx){
+  clearInterval(timerInterval);
+  const qData = allQuestions[currentQuestionIndex];
+  const isCorrect = (choiceIdx===qData.correctIndex);
+
+  if(isCorrect){
+    score += difficultyScore[difficulty];
+    document.getElementById("scoreInfo").innerText = "점수 : " + score;
+    alert("정답입니다!");
+  } else {
+    lives--;
+    document.getElementById("livesInfo").innerText = "남은 기회 : " + lives;
+    // 11. 틀리면 답을 함께 표시
+    const correctText = qData.choices[qData.correctIndex];
+    alert("틀렸습니다! 정답: "+correctText);
+    if(lives<=0){
+      endGame();
+      return;
+    }
+  }
+  nextQuestion();
+}
+
+function nextQuestion(){
+  currentQuestionIndex++;
+  if(currentQuestionIndex >= allQuestions.length){
+    endGame();
+  } else {
+    showQuestion();
+    startTimer();
+  }
+}
+
+function endGame(){
+  clearInterval(timerInterval);
+  document.getElementById("quizScreen").classList.add("hidden");
+  document.getElementById("endScreen").classList.remove("hidden");
+  document.getElementById("finalScore").innerText = "최종 점수: " + score;
+}
+
+</script>
+</body>
+</html>
